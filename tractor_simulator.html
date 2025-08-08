@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>2D Tractor with CG and Ground Slope</title>
+  <style>
+    canvas {
+      border: 1px solid #ccc;
+      margin-top: 10px;
+      display: block;
+    }
+    label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>2D Tractor with Adjustable Ground Slope and CG Display</h2>
+  <label for="slope">Ground Slope (degrees): <span id="angleValue">0.0</span>°</label><br>
+  <input type="range" id="slope" min="-50" max="50" value="0" step="0.1" />
+  <canvas id="tractorCanvas" width="600" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("tractorCanvas");
+    const ctx = canvas.getContext("2d");
+    const slider = document.getElementById("slope");
+    const angleValue = document.getElementById("angleValue");
+
+    const rearWheelX = 170;
+    const groundY = 300;
+    const frontWheelX = 330;
+
+    const rearWheelRadius = 40;
+    const frontWheelRadius = 25;
+
+    const cgLocalX = 0 + 0.3 * (frontWheelX - rearWheelX);
+    const cgLocalY = (-rearWheelRadius - 70) + 70 / 2;
+    const contactLocalX = 0;
+    const contactLocalY = 0;
+
+    function drawTractor(angleDeg) {
+      const angleRad = angleDeg * Math.PI / 180;
+      angleValue.textContent = angleDeg.toFixed(1);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // วาดพื้น (หมุน)
+      ctx.save();
+      ctx.translate(rearWheelX, groundY);
+      ctx.rotate(-angleRad);
+      ctx.beginPath();
+      ctx.moveTo(-rearWheelX, 0);
+      ctx.lineTo(canvas.width, 0);
+      ctx.strokeStyle = "#888";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // วาดตัวรถและเส้นประสีเขียว (หมุนไปพร้อมกัน)
+      ctx.save();
+      ctx.translate(rearWheelX, groundY);
+      ctx.rotate(-angleRad);
+
+      // ล้อหลัง
+      ctx.beginPath();
+      ctx.arc(0, -rearWheelRadius, rearWheelRadius, 0, 2 * Math.PI);
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // ล้อหน้า
+      const frontOffsetX = frontWheelX - rearWheelX;
+      ctx.beginPath();
+      ctx.arc(frontOffsetX, -frontWheelRadius, frontWheelRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // ตัวถัง
+      const bodyX = -20;
+      const bodyY = -rearWheelRadius - 70;
+      const bodyWidth = 200;
+      const bodyHeight = 70;
+      ctx.beginPath();
+      ctx.rect(bodyX, bodyY, bodyWidth, bodyHeight);
+      ctx.stroke();
+
+      // ห้องขับ
+      ctx.beginPath();
+      ctx.rect(60, bodyY - 40, 60, 40);
+      ctx.stroke();
+
+      // ท่อไอเสีย
+      ctx.beginPath();
+      ctx.moveTo(80, bodyY - 40);
+      ctx.lineTo(80, bodyY - 70);
+      ctx.stroke();
+        
+      // วาดเส้นประสีเขียว (หมุนไปพร้อมกับตัวรถ)
+      ctx.beginPath();
+      ctx.moveTo(cgLocalX, cgLocalY);
+      ctx.lineTo(cgLocalX, cgLocalY + 50);
+      ctx.strokeStyle = "green";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // วาดลูกศร Wsinθ และ Wcosθ
+      if (Math.abs(angleDeg) > 0.1) {
+        // Wsinθ (ขนานกับความยาวตัวรถ)
+        const wParallelLength = 40 * Math.sin(Math.abs(angleRad)); 
+        const startX_sin = cgLocalX;
+        const startY_sin = cgLocalY;
+        const endX_sin = startX_sin - wParallelLength * Math.sign(angleDeg);
+        const endY_sin = startY_sin;
+
+        ctx.beginPath();
+        ctx.moveTo(startX_sin, startY_sin);
+        ctx.lineTo(endX_sin, endY_sin);
+        ctx.strokeStyle = "purple";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const arrowHeadLength = 5;
+        ctx.beginPath();
+        ctx.moveTo(endX_sin, endY_sin);
+        ctx.lineTo(endX_sin + arrowHeadLength * Math.sign(angleDeg), endY_sin - arrowHeadLength);
+        ctx.lineTo(endX_sin + arrowHeadLength * Math.sign(angleDeg), endY_sin + arrowHeadLength);
+        ctx.closePath();
+        ctx.fillStyle = "purple";
+        ctx.fill();
+
+        ctx.fillStyle = "purple";
+        ctx.font = "bold 14px Arial";
+        ctx.fillText("Wsinθ", startX_sin + (endX_sin - startX_sin) / 2, startY_sin - 10);
+        
+        // Wcosθ (ตั้งฉากกับความยาวตัวรถ)
+        const wPerpendicularLength = 40 * Math.cos(Math.abs(angleRad));
+        const startX_cos = cgLocalX;
+        const startY_cos = cgLocalY;
+        const endX_cos = startX_cos;
+        const endY_cos = startY_cos + wPerpendicularLength; // ทิศทางพุ่งลงตามแกน Y ของรถ
+
+        ctx.beginPath();
+        ctx.moveTo(startX_cos, startY_cos);
+        ctx.lineTo(endX_cos, endY_cos);
+        ctx.strokeStyle = "orange";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(endX_cos - 5, endY_cos - 5);
+        ctx.lineTo(endX_cos, endY_cos);
+        ctx.lineTo(endX_cos + 5, endY_cos - 5);
+        ctx.strokeStyle = "orange";
+        ctx.stroke();
+        
+        ctx.fillStyle = "orange";
+        ctx.font = "bold 14px Arial";
+        ctx.fillText("Wcosθ", endX_cos + 8, endY_cos - 10);
+      }
+
+      ctx.restore(); // กลับสู่ระบบพิกัดปกติ
+
+      // คำนวณตำแหน่ง CG และจุดสัมผัสล้อในระบบ canvas (ไม่หมุน)
+      const cgCanvasX = rearWheelX + (cgLocalX * Math.cos(-angleRad) - cgLocalY * Math.sin(-angleRad));
+      const cgCanvasY = groundY + (cgLocalX * Math.sin(-angleRad) + cgLocalY * Math.cos(-angleRad));
+      
+      const contactCanvasX = rearWheelX + (contactLocalX * Math.cos(-angleRad) - contactLocalY * Math.sin(-angleRad));
+      const contactCanvasY = groundY + (contactLocalX * Math.sin(-angleRad) + contactLocalY * Math.cos(-angleRad));
+
+      // วาดลูกศร W แนวดิ่งลง (ไม่หมุน)
+      const wArrowLength = 40;
+      ctx.beginPath();
+      ctx.moveTo(cgCanvasX, cgCanvasY);
+      ctx.lineTo(cgCanvasX, cgCanvasY + wArrowLength);
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cgCanvasX - 5, cgCanvasY + wArrowLength - 5);
+      ctx.lineTo(cgCanvasX, cgCanvasY + wArrowLength);
+      ctx.lineTo(cgCanvasX + 5, cgCanvasY + wArrowLength - 5);
+      ctx.stroke();
+      ctx.fillStyle = "red";
+      ctx.font = "bold 14px Arial";
+      ctx.fillText("W", cgCanvasX + 8, cgCanvasY + wArrowLength - 10);
+      
+      // วาดเส้นสีน้ำเงินและคำนวณมุม αs
+      ctx.beginPath();
+      ctx.moveTo(cgCanvasX, cgCanvasY);
+      ctx.lineTo(contactCanvasX, contactCanvasY);
+      ctx.strokeStyle = "blue";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // คำนวณและแสดงมุมของเส้นสีน้ำเงินกับเส้นแนวดิ่งของตัวรถ (คงที่)
+      const dx_blue = cgLocalX - contactLocalX;
+      const dy_blue = cgLocalY - contactLocalY;
+      
+      const dx_vertical = 0;
+      const dy_vertical = 1;
+
+      const dotProduct = dx_blue * dx_vertical + dy_blue * dy_vertical;
+      const magnitude_blue = Math.sqrt(dx_blue * dx_blue + dy_blue * dy_blue);
+      const magnitude_vertical = 1;
+
+      const cosTheta = dotProduct / (magnitude_blue * magnitude_vertical);
+      const angleRadBetween = Math.acos(Math.abs(cosTheta));
+      const angleDegBetween = angleRadBetween * 180 / Math.PI;
+
+      // แสดงค่ามุมใกล้กับจุด CG
+      ctx.fillStyle = "blue";
+      ctx.font = "bold 13px Arial";
+      ctx.fillText("αs ≈ " + angleDegBetween.toFixed(1) + "°", cgCanvasX + 10, cgCanvasY - 5);
+    }
+
+    // เริ่มต้น
+    drawTractor(0);
+
+    // เมื่อมีการปรับ slider
+    slider.addEventListener("input", () => {
+      const angle = parseFloat(slider.value);
+      drawTractor(angle);
+    });
+  </script>
+</body>
+</html>
